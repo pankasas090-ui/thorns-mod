@@ -1,30 +1,45 @@
 package com.example;
 
-import net.fabricmc.api.ModInitializer;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
 
-import net.minecraft.resources.Identifier;
+public class ExampleMod implements ClientModInitializer {
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+    @Override
+    public void onInitializeClient() {
+        // Подключаем отрисовку поверх слотов инвентаря
+        ScreenEvents.BEFORE_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+            if (screen instanceof HandledScreen<?> handledScreen) {
+                ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, tickDelta) -> {
+                    for (Slot slot : handledScreen.getScreenHandler().slots) {
+                        ItemStack stack = slot.getStack();
+                        if (!stack.isEmpty()) {
+                            ItemEnchantmentsComponent enchantments = stack.getOrDefault(
+                                DataComponentTypes.ENCHANTMENTS, 
+                                ItemEnchantmentsComponent.DEFAULT
+                            );
 
-public class ExampleMod implements ModInitializer {
-	public static final String MOD_ID = "modid";
+                            // Проверяем наличие Шипов (Thorns)
+                            boolean hasThorns = enchantments.getEnchantments().stream().anyMatch(entry -> 
+                                entry.getKey().map(key -> key.getValue().getPath().contains("thorns")).orElse(false)
+                            );
 
-	// This logger is used to write text to the console and the log file.
-	// It is considered best practice to use your mod id as the logger's name.
-	// That way, it's clear which mod wrote info, warnings, and errors.
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
-	@Override
-	public void onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
-
-		LOGGER.info("Hello Fabric world!");
-	}
-
-	public static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath(MOD_ID, path);
-	}
+                            if (hasThorns) {
+                                int x = handledScreen.x + slot.x;
+                                int y = handledScreen.y + slot.y;
+                                // Зелёная подсветка точно поверх 16x16 ячейки
+                                context.fill(x, y, x + 16, y + 16, 0x6600FF00);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
 }
